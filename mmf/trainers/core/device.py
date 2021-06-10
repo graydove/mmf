@@ -104,9 +104,13 @@ def broadcast_xla_master_model_param(model):
 
     parameters_and_buffers = []
     for p in chain(model.parameters(), model.buffers()):
+        # Set all params in non-master devices to zero so that all_reduce is equivalent
+        # to broadcasting parameters from master to other devices.
         if not is_master():
-            p.data[...] = 0
+            zero = torch.tensor(0, dtype=p.data.dtype, device=p.data.device)
+            p.data.mul_(zero)
         parameters_and_buffers.append(p.data)
+    xm.wait_device_ops()
     xm.all_reduce(xm.REDUCE_SUM, parameters_and_buffers)
     xm.rendezvous("mmf.trainers.core.device.broadcast_xla_master_model_param")
     logger.info("Done!")
