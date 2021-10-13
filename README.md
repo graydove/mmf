@@ -29,9 +29,9 @@ language datasets (The Hateful Memes, TextVQA, TextCaps and VQA challenges). MMF
 Follow installation instructions in the [documentation](https://mmf.sh/docs/getting_started/installation).
 
 Link to file **detectron_model_x152.pth** (This file may be required) 
-&spnb;
+&nbsp;
 Link: https://pan.baidu.com/s/1Q0Wm8HU4y2y7AlfukfeG0w 
-&spnb;
+&nbsp;
 Code: owj7 
 
 ## Documentation
