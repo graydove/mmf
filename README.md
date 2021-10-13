@@ -30,10 +30,10 @@ Follow installation instructions in the [documentation](https://mmf.sh/docs/gett
 
 Link to file **detectron_model_x152.pth** (This file may be required) 
 
-&nbsp
+
 Link: https://pan.baidu.com/s/1Q0Wm8HU4y2y7AlfukfeG0w 
 
-&nbsp
+
 Code: owj7 
 
 ## Documentation
