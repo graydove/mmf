@@ -1,2 +1,1 @@
-includes:
-- ./defaults.yaml
+../../../../visual_bert/configs/masked_conceptual_captions/pretrain.yaml

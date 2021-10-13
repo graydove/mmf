@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
 import torch
-from mmf.common.registry import registry
 from mmf.common.sample import Sample, SampleList
 from mmf.models.base_model import BaseModel
 from mmf.utils.general import get_current_device
@@ -26,16 +25,9 @@ def compare_tensors(a, b):
     return torch.equal(a, b)
 
 
-def dummy_args(model="cnn_lstm", dataset="clevr", config=None):
-    if config is None:
-        config = os.path.join("configs", "defaults.yaml")
+def dummy_args(model="cnn_lstm", dataset="clevr"):
     args = argparse.Namespace()
-    args.opts = [
-        f"model={model}",
-        f"dataset={dataset}",
-        f"datasets={dataset}",
-        f"config={config}",
-    ]
+    args.opts = [f"model={model}", f"dataset={dataset}"]
     args.config_override = None
     return args
 
@@ -168,7 +160,6 @@ class NumbersDataset(torch.utils.data.Dataset):
         return self.num_examples
 
 
-@registry.register_model("simple_model")
 class SimpleModel(BaseModel):
     @dataclass
     class Config(BaseModel.Config):
@@ -189,42 +180,43 @@ class SimpleModel(BaseModel):
         batch = prepared_batch[self.data_item_key]
         output = self.classifier(batch)
         loss = torch.nn.MSELoss()(-1 * output, batch)
-
         return {
             "losses": {"loss": loss},
             "logits": output,
-            "scores": output,
             "input_batch": input_sample,
-            "dataset_type": input_sample["dataset_type"],
-            "dataset_name": input_sample["dataset_name"],
+            "dataset_type": "dummy_dataset_type",
+            "dataset_name": "dummy_dataset_name",
         }
 
 
-class SimpleNaNLossModel(SimpleModel):
-    def forward(self, prepared_batch: Dict[str, Tensor]):
-        report = super().forward(prepared_batch)
-        report["losses"]["loss"] /= 0.0  # create an NaN loss
-        return report
-
-
-@registry.register_model("simple_lightning_model")
 class SimpleLightningModel(SimpleModel):
-    def __init__(self, config: SimpleModel.Config):
+    def __init__(self, config: SimpleModel.Config, trainer_config=None):
         super().__init__(config)
+        self.trainer_config = trainer_config
 
     def build_meters(self, run_type):
         from mmf.utils.build import build_meters
 
         self.train_meter, self.val_meter, self.test_meter = build_meters(run_type)
 
+    def training_step(self, batch, batch_idx, *args, **kwargs):
+        return self._forward_step(batch, batch_idx, *args, **kwargs)
+
+    def validation_step(self, batch, batch_idx, *args, **kwargs):
+        return self._forward_step(batch, batch_idx, *args, **kwargs)
+
+    def _forward_step(self, batch, batch_idx, *args, **kwargs):
+        output = self(batch)
+        output["loss"] = output["losses"]["loss"]
+        return output
+
     def configure_optimizers(self):
-        config = registry.get("config")
-        if config is None:
+        if self.config is None:
             return torch.optim.Adam(self.parameters(), lr=0.01)
         else:
             from mmf.utils.build import build_lightning_optimizers
 
-            return build_lightning_optimizers(self, config)
+            return build_lightning_optimizers(self, self.trainer_config)
 
 
 def assertModulesEqual(mod1, mod2):

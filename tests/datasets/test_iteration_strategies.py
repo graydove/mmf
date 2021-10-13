@@ -1,5 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-
 import unittest
 from collections import Counter
 

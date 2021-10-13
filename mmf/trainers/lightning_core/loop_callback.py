@@ -55,12 +55,23 @@ class LightningLoopCallback(Callback):
         )
 
         # log
-        if (
-            self._get_num_updates_for_logging(trainer)
-            % self.trainer_config.log_every_n_steps
-            == 0
-        ):
+        if (trainer.global_step + 1) % self.trainer_config.log_every_n_steps == 0:
             self._train_log(trainer, pl_module)
+
+        # save checkpoints - TODO: @sash
+
+    def on_train_end(self, trainer: Trainer, pl_module: LightningModule):
+        # Only do when run_type has train as it shouldn't happen on validation and
+        # inference runs. Inference will take care of this anyways. Also, don't run
+        # if current iteration is divisble by snapshot interval as it will just
+        # be a repeat
+        if (
+            "train" in self.run_type
+            and trainer.global_step % self.trainer_config.val_check_interval != 0
+        ):
+            logger.info("Stepping into final validation check")
+            # Pytorch Lightning upgrades PR4945 and PR4948 will be enabled in 1.2
+            # TODO: perform final validation check
 
     # Validation Callbacks
     def on_validation_start(self, trainer: Trainer, pl_module: LightningModule):
@@ -73,7 +84,7 @@ class LightningLoopCallback(Callback):
         self,
         trainer: Trainer,
         pl_module: LightningModule,
-        outputs: Dict,
+        outputs: List,
         batch: SampleList,
         batch_idx: int,
         dataloader_idx: int,
@@ -90,7 +101,6 @@ class LightningLoopCallback(Callback):
             self.val_combined_report,
             update_meter=pl_module.val_meter,
         )
-        self.val_combined_report = self.val_combined_report.detach()
         self.val_combined_report.metrics = pl_module.metrics(
             self.val_combined_report, self.val_combined_report
         )
@@ -156,6 +166,11 @@ class LightningLoopCallback(Callback):
         optimizer = trainer.optimizers[0]
         return optimizer
 
+    def _save_checkpoint(self, trainer: Trainer):
+        logger.info("Checkpoint time. Saving a checkpoint.")
+        return
+        # TODO: sash Needs implementation - next mvp
+
     def _get_current_epoch_for_logging(self, trainer: Trainer):
         return trainer.current_epoch + 1
 
@@ -166,7 +181,6 @@ class LightningLoopCallback(Callback):
         return trainer.global_step + 1
 
     def _train_log(self, trainer: Trainer, pl_module: LightningModule):
-        self.train_combined_report = self.train_combined_report.detach()
         if self.training_config.evaluate_metrics:
             self.train_combined_report.metrics = pl_module.metrics(
                 self.train_combined_report, self.train_combined_report

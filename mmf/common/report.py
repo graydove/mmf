@@ -8,6 +8,8 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import torch
 from mmf.common.sample import SampleList, detach_tensor
 
+import time
+
 
 class Report(OrderedDict):
     def __init__(
@@ -164,8 +166,8 @@ class Report(OrderedDict):
                     + "might not work as expected."
                 )
                 continue
-            if isinstance(self[key], torch.Tensor):
-                self[key] = torch.cat((self[key], report[key]), dim=0)
+            # if isinstance(self[key], torch.Tensor):
+                # self[key] = torch.cat((self[key], report[key]), dim=0)
 
         self._accumulate_loss(report)
 

@@ -25,7 +25,7 @@ class MaskedTokenProcessor(BaseProcessor):
         )
 
         self._max_seq_length = config.max_seq_length
-        self._probability = config.get("mask_probability", 0.15)
+        self._probability = getattr(config, "mask_probability", 0.15)
 
     def get_vocab_size(self) -> int:
         return len(self._tokenizer)
@@ -164,9 +164,7 @@ class MaskedTokenProcessor(BaseProcessor):
         output = self._convert_to_indices(
             tokens_a, tokens_b, probability=self._probability
         )
-        output["is_correct"] = torch.tensor(
-            item.get("is_correct", True), dtype=torch.long
-        )
+        output["is_correct"] = torch.tensor(item["is_correct"], dtype=torch.long)
 
         return output
 

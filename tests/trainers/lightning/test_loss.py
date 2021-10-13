@@ -5,11 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from mmf.common.report import Report
 from pytorch_lightning.callbacks.base import Callback
-from tests.trainers.test_utils import (
-    get_config_with_defaults,
-    get_lightning_trainer,
-    get_mmf_trainer,
-)
+from tests.trainers.test_utils import get_lightning_trainer, get_mmf_trainer
 
 
 class TestLightningTrainerLoss(unittest.TestCase, Callback):
@@ -22,19 +18,15 @@ class TestLightningTrainerLoss(unittest.TestCase, Callback):
         def _on_update_end(report, meter, should_log):
             self.mmf_losses.append(report["losses"]["loss"].item())
 
-        config = get_config_with_defaults(
-            {"training": {"max_updates": 5, "max_epochs": None}}
+        mmf_trainer = get_mmf_trainer(
+            max_updates=5, max_epochs=None, on_update_end_fn=_on_update_end
         )
-        mmf_trainer = get_mmf_trainer(config=config)
-        mmf_trainer.on_update_end = _on_update_end
         mmf_trainer.evaluation_loop = MagicMock(return_value=(None, None))
         mmf_trainer.training_loop()
 
         # compute lightning_trainer training losses
-        with patch("mmf.trainers.lightning_trainer.get_mmf_env", return_value=""):
-            config = get_config_with_defaults({"trainer": {"params": {"max_steps": 5}}})
-            trainer = get_lightning_trainer(config=config)
-            trainer.callbacks.append(self)
+        with patch("mmf.trainers.lightning_trainer.get_mmf_env", return_value=None):
+            trainer = get_lightning_trainer(callback=self, max_steps=5)
             trainer.trainer.fit(trainer.model, trainer.data_module.train_loader)
 
     def on_train_batch_end(

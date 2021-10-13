@@ -15,7 +15,7 @@ ACT2FN = {
 }
 
 
-def get_bert_configured_parameters(module, lr=None, weight_decay=0.01):
+def get_bert_configured_parameters(module, lr=None):
     # module param can either be a nn.Module or in some cases can also be
     # a list of named parameters for a nn.Module
     if isinstance(module, nn.Module):
@@ -29,7 +29,7 @@ def get_bert_configured_parameters(module, lr=None, weight_decay=0.01):
             "params": [
                 p for n, p in param_optimizer if not any(nd in n for nd in no_decay)
             ],
-            "weight_decay": weight_decay,
+            "weight_decay": 0.01,
         },
         {
             "params": [
@@ -48,8 +48,8 @@ def get_bert_configured_parameters(module, lr=None, weight_decay=0.01):
 
 def get_optimizer_parameters_for_bert(module, config):
     lr = config.optimizer.params.lr
-    model_config = config.model_config.get(config.model, {})
-    finetune_lr_multiplier = model_config.get("finetune_lr_multiplier", 1)
+    model_config = getattr(config.model_config, config.model, {})
+    finetune_lr_multiplier = getattr(model_config, "finetune_lr_multiplier", 1)
 
     # For pretraining or when finetune_lr_multiplier == 1, all modules will be trained
     # with default lr.

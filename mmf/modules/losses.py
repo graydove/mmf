@@ -34,10 +34,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmf.common.registry import registry
-from mmf.utils.distributed import gather_tensor_along_batch_with_backward, get_rank
 from mmf.utils.logger import log_class_usage
 from omegaconf import MISSING
-from packaging import version
 from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence
 
@@ -187,31 +185,21 @@ class MMFLoss(nn.Module):
             self.loss_criterion = loss_class(**loss_params)
 
     def forward(self, sample_list: Dict[str, Tensor], model_output: Dict[str, Tensor]):
-        loss_dict = {}
-        loss_result = self.loss_criterion(sample_list, model_output)
+        loss = self.loss_criterion(sample_list, model_output)
 
-        if not isinstance(loss_result, collections.abc.Mapping):
-            loss_result = {"": loss_result}
+        if not isinstance(loss, torch.Tensor):
+            loss = torch.tensor(loss, dtype=torch.float)
 
-        for child_loss_name, child_loss_result in loss_result.items():
+        if loss.dim() == 0:
+            loss = loss.view(1)
 
-            if not isinstance(child_loss_result, torch.Tensor):
-                child_loss_result = torch.tensor(child_loss_result, dtype=torch.float)
-
-            if child_loss_result.dim() == 0:
-                child_loss_result = child_loss_result.view(1)
-
-            if not torch.jit.is_scripting():
-                key = "{}/{}/{}".format(
-                    sample_list.dataset_type, sample_list.dataset_name, self.name
-                )
-            else:
-                key = f"{self.name}"
-
-            key = f"{key}/{child_loss_name}" if child_loss_name else key
-            loss_dict[key] = child_loss_result
-
-        return loss_dict
+        if not torch.jit.is_scripting():
+            key = "{}/{}/{}".format(
+                sample_list.dataset_type, sample_list.dataset_name, self.name
+            )
+        else:
+            key = f"{self.name}"
+        return {key: loss}
 
 
 @registry.register_loss("logit_bce")
@@ -331,7 +319,7 @@ class CaptionCrossEntropyLoss(nn.Module):
             decode_lengths = (caption_lengths - 1).tolist()
         else:
             decode_lengths = [targets.size(1)] * targets.size(0)
-        if version.parse(torch.__version__) >= version.parse("1.1"):
+        if torch.__version__ >= "1.1":
             scores = pack_padded_sequence(scores, decode_lengths, batch_first=True).data
             targets = pack_padded_sequence(
                 targets, decode_lengths, batch_first=True
@@ -768,96 +756,11 @@ class ContrastiveLoss(nn.Module):
         assert (
             "embedding_1" in model_output and "embedding_2" in model_output
         ), "Embedding names must be available before loss calculation"
-
         embedding_1 = model_output["embedding_1"]
         embedding_2 = model_output["embedding_2"]
 
-        assert embedding_1.size(0) == embedding_2.size(0), "batch size must match"
-        per_gpu_batch_size = embedding_1.size(0)
-
-        embedding_1_all_gpus = gather_tensor_along_batch_with_backward(embedding_1)
-        embedding_2_all_gpus = gather_tensor_along_batch_with_backward(embedding_2)
-
-        temperature = model_output["temperature"]
-
-        logits_1 = (
-            torch.matmul(embedding_1, embedding_2_all_gpus.transpose(0, 1))
-            / temperature
-        )
-        logits_2 = (
-            torch.matmul(embedding_2, embedding_1_all_gpus.transpose(0, 1))
-            / temperature
-        )
-        labels = per_gpu_batch_size * get_rank() + torch.arange(
-            per_gpu_batch_size, device=temperature.device
-        )
-
-        loss_1 = F.cross_entropy(logits_1, labels)
-        loss_2 = F.cross_entropy(logits_2, labels)
-
-        return (loss_1 + loss_2) / 2
-
-
-@registry.register_loss("mse")
-class MSELoss(nn.Module):
-    """Mean Squared Error loss"""
-
-    def __init__(self):
-        super().__init__()
-        self.loss_fn = nn.MSELoss()
-
-    def forward(self, sample_list, model_output):
-        targets = sample_list["targets"]
-        scores = model_output["scores"]
-        loss = self.loss_fn(scores, targets)
-        return loss
-
-
-@registry.register_loss("cos_emb_loss")
-class CosineEmbeddingLoss(nn.Module):
-    """Cosine embedding loss"""
-
-    def __init__(self):
-        super().__init__()
-        self.loss_fn = nn.CosineEmbeddingLoss()
-
-    def forward(self, sample_list, model_output):
-        targets = sample_list["targets"]
-        scores = model_output["scores"]
-        y = torch.ones(targets.size(0)).to(targets.device)
-        loss = self.loss_fn(scores, targets, y)
-        return loss
-
-
-@registry.register_loss("bce_kl")
-class BCEAndKLLoss(nn.Module):
-    """binary_cross_entropy_with_logits and kl divergence loss.
-    Calculates both losses and returns a dict with string keys.
-    Similar to bce_kl_combined, but returns both losses.
-    """
-
-    def __init__(self, weight_softmax):
-        super().__init__()
-        self.weight_softmax = weight_softmax
-
-    def forward(self, sample_list, model_output):
-        pred_score = model_output["scores"]
-        target_score = sample_list["targets"]
-
-        tar_sum = torch.sum(target_score, dim=1, keepdim=True)
-        tar_sum_is_0 = torch.eq(tar_sum, 0)
-        tar_sum.masked_fill_(tar_sum_is_0, 1.0e-06)
-        tar = target_score / tar_sum
-
-        res = F.log_softmax(pred_score, dim=1)
-        loss1 = kl_div(res, tar)
-        loss1 = torch.sum(loss1) / loss1.size(0)
-
-        loss2 = F.binary_cross_entropy_with_logits(
-            pred_score, target_score, reduction="mean"
-        )
-        loss2 *= target_score.size(1)
-
-        loss = {"kl": self.weight_softmax * loss1, "bce": loss2}
-
-        return loss
+        mma = embedding_1 @ embedding_2.T
+        labels = torch.arange(mma.shape[0], device=mma.device)
+        loss1 = F.cross_entropy(mma, labels)
+        loss2 = F.cross_entropy(mma.T, labels)
+        return (loss1 + loss2) / 2

@@ -8,5 +8,5 @@ model_config:
       params:
         beam_length: 5
 
-training:
-  batch_size: 1
+# training:
+  # batch_size: 1

@@ -1,0 +1,1 @@
+mmf_predict config=projects/butd/configs/dpc/defaults.yaml model=butd dataset=dpc run_type=test checkpoint.resume_file=/home/graydove/Project/mmf/save/best.ckpt

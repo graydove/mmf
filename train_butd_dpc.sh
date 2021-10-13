@@ -1,0 +1,1 @@
+mmf_run config=projects/butd/configs/dpc/defaults.yaml model=butd dataset=dpc run_type=train_val training.evaluation_interval=500 training.batch_size=224

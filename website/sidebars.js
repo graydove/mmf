@@ -29,9 +29,7 @@ module.exports = {
     ],
     Tutorials: [
       'tutorials/dataset',
-      'tutorials/metrics',
       'tutorials/concat_bert_tutorial',
-      'tutorials/losses',
       'tutorials/image_feature_extraction',
       'tutorials/checkpointing',
       'tutorials/processors',

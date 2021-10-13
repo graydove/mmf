@@ -8,7 +8,7 @@ import torch
 from torch import Tensor
 
 
-class NestedTensor:
+class NestedTensor(object):
     """
     A data class to hold images of different sizes in a batch.
 

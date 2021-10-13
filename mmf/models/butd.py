@@ -175,5 +175,4 @@ class BUTD(Pythia):
             )
         else:
             model_output["scores"] = scores
-
         return model_output

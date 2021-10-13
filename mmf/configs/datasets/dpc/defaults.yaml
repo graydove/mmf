@@ -1,0 +1,59 @@
+dataset_config:
+  dpc:
+    data_dir: ${env.data_dir}/datasets
+    depth_first: false
+    fast_read: false
+    use_images: false
+    use_features: true
+    zoo_requirements:
+    - dpc.defaults
+    # annotation_style can be coco or textcaps which allows us to override
+    # the dataset class
+    annotation_style: coco
+    images:
+      train:
+      - dpc/defaults/images/train
+      val:
+      - dpc/defaults/images/val
+      test:
+      - dpc/defaults/images/test
+    features:
+      train:
+      - dpc/defaults/features/train.lmdb
+      val:
+      - dpc/defaults/features/val.lmdb
+      test:
+      - dpc/defaults/features/test.lmdb
+    annotations:
+      train:
+      - dpc/defaults/annotations/dpc_caption_train.npy
+      val:
+      - dpc/defaults/annotations/dpc_caption_val.npy
+      test:
+      - dpc/defaults/annotations/dpc_caption_test.npy
+    max_features: 100
+    processors:
+      text_processor:
+        type: vocab
+        params:
+          max_length: 52
+          vocab:
+            type: intersected
+            embedding_name: glove.6B.300d
+            vocab_file: dpc/defaults/extras/vocabs/vocabulary_captioning_thresh5.txt
+          preprocessor:
+            type: simple_sentence
+            params: {}
+      caption_processor:
+        type: caption
+        params:
+          vocab:
+            type: intersected
+            embedding_name: glove.6B.300d
+            vocab_file: dpc/defaults/extras/vocabs/vocabulary_captioning_thresh5.txt
+    min_captions_per_img: 5
+    return_features_info: false
+    # Return OCR information
+    use_ocr: false
+    # Return spatial information of OCR tokens if present
+    use_ocr_info: false

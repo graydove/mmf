@@ -6,12 +6,6 @@ from abc import ABC
 
 import torch
 from mmf.common.registry import registry
-from mmf.utils.distributed import (
-    broadcast_xla_master_model_param,
-    get_world_size,
-    is_xla,
-)
-from omegaconf import open_dict
 
 
 logger = logging.getLogger(__name__)
@@ -37,15 +31,7 @@ class TrainerDeviceMixin(ABC):
             is_xla = True
         else:
             is_xla = False
-            if "device_id" not in self.config:
-                warnings.warn(
-                    "No 'device_id' in 'config', setting to -1. "
-                    "This can cause issues later in training. Ensure that "
-                    "distributed setup is properly initialized."
-                )
-                self.local_rank = -1
-            else:
-                self.local_rank = self.config.device_id
+            self.local_rank = self.config.device_id
             self.device = self.local_rank
             self.distributed = False
 
@@ -61,14 +47,6 @@ class TrainerDeviceMixin(ABC):
             torch.cuda.set_device(0)
         elif not is_xla:
             self.device = torch.device("cpu")
-
-        if "rank" not in self.config.distributed:
-            if torch.distributed.is_available() and torch.distributed.is_initialized():
-                global_rank = torch.distributed.get_rank()
-            else:
-                global_rank = -1
-            with open_dict(self.config.distributed):
-                self.config.distributed.rank = global_rank
 
         registry.register("global_device", self.config.distributed.rank)
 
@@ -87,8 +65,8 @@ class TrainerDeviceMixin(ABC):
             registry.register("distributed", True)
             set_torch_ddp = True
             try:
-                from fairscale.nn.data_parallel import ShardedDataParallel
                 from fairscale.optim.oss import OSS
+                from fairscale.nn.data_parallel import ShardedDataParallel
 
                 if isinstance(self.optimizer, OSS):
                     self.model = ShardedDataParallel(self.model, self.optimizer)
@@ -108,6 +86,3 @@ class TrainerDeviceMixin(ABC):
                     output_device=self.local_rank,
                     find_unused_parameters=self.config.training.find_unused_parameters,
                 )
-
-        if is_xla() and get_world_size() > 1:
-            broadcast_xla_master_model_param(self.model)

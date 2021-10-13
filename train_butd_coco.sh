@@ -1,0 +1,1 @@
+mmf_run config=projects/butd/configs/coco/defaults.yaml model=butd dataset=coco run_type=train_val training.evaluation_interval=100 training.batch_size=16

@@ -7,6 +7,7 @@ import warnings
 from ast import literal_eval
 from typing import List
 
+import demjson
 import torch
 from mmf.common.registry import registry
 from mmf.utils.env import import_user_module
@@ -23,7 +24,7 @@ def load_yaml(f):
     abs_f = get_absolute_path(f)
 
     try:
-        mapping = OmegaConf.load(PathManager.get_local_path(abs_f))
+        mapping = OmegaConf.load(abs_f)
         f = abs_f
     except FileNotFoundError as e:
         # Check if this file might be relative to root?
@@ -33,7 +34,7 @@ def load_yaml(f):
             raise e
         else:
             f = relative
-            mapping = OmegaConf.load(PathManager.get_local_path(f))
+            mapping = OmegaConf.load(f)
 
     if mapping is None:
         mapping = OmegaConf.create()
@@ -431,8 +432,8 @@ class Configuration:
         return load_yaml(default_model_config_path)
 
     def _build_dataset_config(self, config):
-        dataset = config.get("dataset", None)
-        datasets = config.get("datasets", None)
+        dataset = config.dataset
+        datasets = config.datasets
 
         if dataset is None and datasets is None:
             raise KeyError("Required argument 'dataset|datasets' not passed")
@@ -476,12 +477,6 @@ class Configuration:
         if demjson_string is None:
             return OmegaConf.create()
 
-        try:
-            import demjson
-        except ImportError:
-            logger.warning("demjson is required to use config_override")
-            raise
-
         demjson_dict = demjson.decode(demjson_string)
         return OmegaConf.create(demjson_dict)
 
@@ -493,9 +488,9 @@ class Configuration:
         OmegaConf.clear_resolvers()
         # Device count resolver
         device_count = max(1, torch.cuda.device_count())
-        OmegaConf.register_new_resolver("device_count", lambda: device_count)
-        OmegaConf.register_new_resolver("resolve_cache_dir", resolve_cache_dir)
-        OmegaConf.register_new_resolver("resolve_dir", resolve_dir)
+        OmegaConf.register_resolver("device_count", lambda: device_count)
+        OmegaConf.register_resolver("resolve_cache_dir", resolve_cache_dir)
+        OmegaConf.register_resolver("resolve_dir", resolve_dir)
 
     def freeze(self):
         OmegaConf.set_struct(self.config, True)
@@ -565,13 +560,10 @@ class Configuration:
         # if args["seed"] == -1:
         #     self.config["training"]["seed"] = random.randint(1, 1000000)
 
-        if (
-            "learning_rate" in config
-            and "optimizer" in config
-            and "params" in config.optimizer
-        ):
-            lr = config.learning_rate
-            config.optimizer.params.lr = lr
+        if config.learning_rate:
+            if "optimizer" in config and "params" in config.optimizer:
+                lr = config.learning_rate
+                config.optimizer.params.lr = lr
 
         # TODO: Correct the following issue
         # This check is triggered before the config override from

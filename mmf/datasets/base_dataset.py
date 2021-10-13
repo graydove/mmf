@@ -48,7 +48,7 @@ class BaseDataset(Dataset):
         raise NotImplementedError
 
     def init_processors(self):
-        if "processors" not in self.config:
+        if not hasattr(self.config, "processors"):
             return
 
         from mmf.utils.build import build_processors
@@ -101,10 +101,6 @@ class BaseDataset(Dataset):
     @dataset_name.setter
     def dataset_name(self, name):
         self._dataset_name = name
-
-    @dataset_type.setter
-    def dataset_type(self, dataset_type):
-        self._dataset_type = dataset_type
 
     def format_for_prediction(self, report):
         return []

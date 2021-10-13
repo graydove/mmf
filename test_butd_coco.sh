@@ -1,0 +1,1 @@
+mmf_predict config=projects/butd/configs/coco/defaults.yaml model=butd dataset=coco run_type=test checkpoint.resume_file=/home/graydove/Project/mmf/save/current.ckpt

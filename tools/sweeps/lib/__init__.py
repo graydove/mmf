@@ -34,15 +34,6 @@ def get_args(argv=None):
         help="number of nodes for distributed training",
     )
     parser.add_argument(
-        "--model_type",
-        type=str,
-        default="aicommerce__multimodal_model",
-        help="registered model type",
-    )
-    parser.add_argument(
-        "--oncall", type=str, default="ai_commerce", help="oncall team "
-    )
-    parser.add_argument(
         "--capabilities",
         type=str,
         default="GPU_V100_HOST",
@@ -51,12 +42,6 @@ def get_args(argv=None):
     parser.add_argument("--seed", type=int, default=1234)
     parser.add_argument(
         "--config", type=str, default=None, help="configuration for model"
-    )
-    parser.add_argument(
-        "--extra_args",
-        type=str,
-        nargs="*",
-        help="extra arguments to be passed into MMF command (e.g. config arguments)",
     )
     parser.add_argument(
         "--baseline_model", help="path to baseline model from which to resume training"

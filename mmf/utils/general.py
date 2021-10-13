@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict
 import torch
 from mmf.utils.distributed import get_rank, get_world_size, is_xla
 from mmf.utils.file_io import PathManager
-from packaging import version
 from torch import Tensor, nn
 
 
@@ -249,7 +248,10 @@ def print_cuda_usage():
 
 def check_fft_version():
     # Acquires and parses the PyTorch version
-    if version.parse(torch.__version__) >= version.parse("1.7"):
+    split_version = torch.__version__.split(".")
+    major_version = int(split_version[0])
+    minor_version = int(split_version[1])
+    if major_version > 1 or (major_version == 1 and minor_version >= 7):
         if "torch.fft" not in sys.modules:
             raise RuntimeError("torch.fft module available but not imported")
 
@@ -418,7 +420,7 @@ def get_current_device():
         import torch_xla.core.xla_model as xm
 
         return xm.xla_device()
-    if torch.cuda.is_available() and torch.cuda.is_initialized():
+    if torch.cuda.is_available():
         return f"cuda:{torch.cuda.current_device()}"
     else:
         return torch.device("cpu")

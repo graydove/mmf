@@ -16,7 +16,6 @@ from .fusions import FusionBase, ConcatBERT, ConcatBoW, LateFusion
 from .unimodal import UnimodalBase, UnimodalText, UnimodalModal
 from .visual_bert import VisualBERT
 from .vilbert import ViLBERT
-from .albef.vit import AlbefVitEncoder
 
 
 __all__ = [
@@ -42,5 +41,4 @@ __all__ = [
     "UnimodalBase",
     "UnimodalModal",
     "UnimodalText",
-    "AlbefVitEncoder",
 ]

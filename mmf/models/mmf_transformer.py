@@ -190,7 +190,6 @@ class MMFTransformer(BaseTransformer):
         masks = self._infer_masks(sample_list, input_ids)
         segment_ids = self._infer_segment_ids(sample_list, input_ids)
         mlm_labels = self._infer_mlm_labels(sample_list, input_ids)
-        itm_labels = self._infer_itm_labels(sample_list, input_ids)
 
         return {
             "input_ids": input_ids,
@@ -198,7 +197,6 @@ class MMFTransformer(BaseTransformer):
             "segment_ids": segment_ids,
             "masks": masks,
             "mlm_labels": mlm_labels,
-            "itm_labels": itm_labels,
         }
 
     def _infer_input_ids(self, sample_list: Dict[str, Tensor]) -> Dict[str, Tensor]:
@@ -335,22 +333,6 @@ class MMFTransformer(BaseTransformer):
 
         return segment_ids
 
-    def _infer_itm_labels(
-        self, sample_list: Dict[str, Tensor], input_ids: Dict[str, Tensor]
-    ) -> Dict[str, Tensor]:
-        # ITM Labels
-        # Currently supports only global match/mismatch between all modalities but
-        # not pairwise between modalities.
-        itm_labels: Dict[str, Tensor] = {}
-        if "is_correct" in sample_list:
-            itm_labels["is_correct"] = sample_list["is_correct"]
-        else:
-            itm_labels["is_correct"] = torch.tensor(
-                True, dtype=torch.long, device=input_ids[self.modality_keys[0]].device
-            )
-
-        return itm_labels
-
     def _infer_mlm_labels(
         self, sample_list: Dict[str, Tensor], input_ids: Dict[str, Tensor]
     ) -> Dict[str, Tensor]:
@@ -400,6 +382,7 @@ class MMFTransformer(BaseTransformer):
         )
 
         # Transformer Heads
+
         return self.postprocess_output(
             sequence_output, encoded_layers, processed_sample_list
         )
@@ -420,6 +403,7 @@ class MMFTransformer(BaseTransformer):
             )
         return output_dict
 
+    # encoder_key = self.config.tie_weight_to_encoder
     def _find_unique_encoder_key(self, key):
         assert key in self.encoders, f"MMFT doesn't have {key} encoder."
         for modality in self.config.modalities:
